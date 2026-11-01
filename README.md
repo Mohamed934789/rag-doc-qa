@@ -50,3 +50,7 @@ Use your own authorized PDFs or generate a synthetic sample with `python scripts
 An older committed textbook PDF is retained pending an owner redistribution review; do not treat
 its presence as a license grant. No benchmark accuracy is claimed. Offline fixture retrieval is a
 regression test, not a representative semantic-quality evaluation.
+
+The optional `tests/evaluate_retrieval.py` uses your configured indexed corpus and embedding provider.
+Its textbook keyword checks are a limited retrieval smoke check, not a grounded-answer benchmark;
+they are excluded from offline CI. Both evaluation scripts are portable and have no calls on import.

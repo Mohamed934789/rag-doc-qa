@@ -1,22 +1,10 @@
+"""Optional provider-backed retrieval inspection; import has no network effects."""
 import sys
-import os
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from src.pipeline import RAGPipeline
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
-
-
-
-from retriever import retrieve_relevant_chunks
-from langchain_chroma import Chroma
-from embeddings import get_embedding_function
-
-vectorstore = Chroma(
-    persist_directory="C:/Users/mkass/OneDrive/Desktop/AI/RAG/rag-doc-qa/data/vectorstore",
-    embedding_function=get_embedding_function()
-)
-
-for q in ["Why does my model perform great on training data but badly on new data"]:
-    print("Query:", q)
-    chunks = retrieve_relevant_chunks(vectorstore, q, k=4)
-    for c in chunks:
-        print("-", c.page_content[:150].replace("\n", " "))
-    print("===")
+if __name__ == "__main__":
+    query=input("Question: ").strip()
+    for chunk in RAGPipeline().retrieve(query):
+        print(chunk.metadata.get("source"), chunk.metadata.get("page"), chunk.page_content[:150])

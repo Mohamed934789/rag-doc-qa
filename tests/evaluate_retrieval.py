@@ -1,11 +1,12 @@
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from config import settings
 
-from embeddings import get_embedding_function
+from src.embeddings import get_embedding_function
 from langchain_chroma import Chroma
 
-from retriever import retrieve_relevant_chunks
+from src.retriever import retrieve_relevant_chunks
 
 
 evaluation_set = [
@@ -74,9 +75,9 @@ def evaluate_retrieval(vectorstore, evaluation_set):
         status = "✅ PASS" if r["found"] else "❌ FAIL"
         print(f"{status} — {r['question']}")
 
-vectorstore = Chroma(
-    persist_directory="C:/Users/mkass/OneDrive/Desktop/AI/RAG/rag-doc-qa/data/vectorstore",
-    embedding_function=get_embedding_function()
-)
 
-evaluate_retrieval(vectorstore, evaluation_set)
+if __name__ == "__main__":
+    if not settings.VECTORSTORE_DIR.exists():
+        raise SystemExit("Index a permitted corpus first; this optional smoke evaluation uses your configured provider.")
+    vectorstore = Chroma(persist_directory=str(settings.VECTORSTORE_DIR), embedding_function=get_embedding_function())
+    evaluate_retrieval(vectorstore, evaluation_set)
