@@ -1,38 +1,17 @@
-from config import settings
-from langchain_community.document_loaders import PyPDFLoader
-import logging
+"""Native PDF ingestion; image-only PDFs require external OCR."""
+from pathlib import Path
+from pypdf import PdfReader
+from langchain_core.documents import Document
 
-logger = logging.getLogger(__name__)
-
-def load_pdf(file_path: str):
-    """
-    Load a PDF file and return its content as a list of pages.
-
-    Args:
-        file_path (str): The path to the PDF file."""
-
-    logger.info(f"Loading PDF from: {file_path}")
-    try:
-        loader= PyPDFLoader(file_path)
-
-        documents = loader.load()
-        logger.info(f"Successfully loaded {len(documents)} pages")
-        return documents
-    except ValueError as e:
-
-        if "not a valid file" in str(e):
-             logger.error(f"File not found or invalid: {file_path}")
-             raise ValueError(f"File not found or invalid: {file_path}") from e
-        raise  # أي ValueError تاني، سيبه يتصعّد زي ما هو من غير ما نغير رسالته
-
-
-
-if __name__ == "__main__":
-    documents = load_pdf("C:/Users/mkass/OneDrive/Desktop/AI/RAG/rag-doc-qa/data/raw/Hands On Machine Learning.pdf")
-    
-    # print("Number of documents:", len(documents))
-    # print("---")
-    # print("Metadata of first page:", documents[0].metadata)
-    # print("---")
-    # print("Content of first page (first 300 chars):", documents[0].page_content[:300])
-    print("Length of fifth page content:", len(documents[5].page_content))
+def load_pdf(file_path):
+    path = Path(file_path)
+    if not path.is_file():
+        raise FileNotFoundError("PDF does not exist")
+    reader = PdfReader(path)
+    if reader.is_encrypted:
+        raise ValueError("Encrypted PDFs are not supported")
+    documents = [Document(page_content=page.extract_text() or "", metadata={"source": path.name, "page": i})
+                 for i, page in enumerate(reader.pages)]
+    if not any(d.page_content.strip() for d in documents):
+        raise ValueError("No native PDF text found; OCR is not implemented")
+    return documents

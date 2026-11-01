@@ -1,16 +1,14 @@
-# Virtual environment
 venv/
-
-# Environment variables (secrets)
+.venv/
 .env
-
-# Python cache files
+.env.*
+!.env.example
 __pycache__/
 *.pyc
-
-# Data - keep folder structure, ignore contents
-# data/raw/*
-# !data/raw/.gitkeep
-
-data/vectorstore/*
-!data/vectorstore/.gitkeep
+.pytest_cache/
+data/uploads/
+data/vectorstore/
+data/vectorestore/
+.DS_Store
+Thumbs.db
+.ipynb_checkpoints/

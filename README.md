@@ -1,239 +1,52 @@
-<div align="center">
+# RAG Document Q&A
 
-# 📚 RAG Document Q&A
+A single-owner PDF question-answering prototype using LangChain, Chroma, OpenAI and FastAPI.
+It implements native-text PDF ingestion, content-sensitive chunk IDs, persistent retrieval,
+and answers with returned PDF-page excerpts. This is a local prototype, not a multi-tenant service.
 
-### Ask questions about your documents. Get grounded, source-backed answers.
-
-A production-style **Retrieval-Augmented Generation (RAG)** system built from scratch — from raw PDF ingestion to a containerized, deployable API.
-
-![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![LangChain](https://img.shields.io/badge/LangChain-1F2937?style=for-the-badge&logo=langchain&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
-![ChromaDB](https://img.shields.io/badge/ChromaDB-FF6B6B?style=for-the-badge&logo=databricks&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-
-</div>
-
----
-
-## 🎯 What This Is
-
-You give it a PDF. You ask it a question. It searches the document's actual content, pulls the relevant passages, and generates an answer **grounded strictly in that content** — refusing to hallucinate when the answer isn't there.
-
-Built end-to-end by hand: no black-box templates, no copy-pasted boilerplate. Every stage — ingestion, cleaning, chunking, embedding, retrieval, generation, evaluation, the API, and the container — was designed, implemented, debugged, and tested deliberately.
-
-<div align="center">
-
-```
-📄 PDF  →  🧹 Clean  →  ✂️ Chunk  →  🧠 Embed  →  🗄️ Store
-                                                      │
-❓ Question  →  🔍 Retrieve  →  📝 Prompt  →  🤖 LLM  →  ✅ Answer + Sources
-```
-
-</div>
-
----
-
-## ✨ Key Features
-
-| | |
-|---|---|
-| 🧩 **Modular Pipeline** | Each stage (load, clean, chunk, embed, store, retrieve, generate) lives in its own module — no monolithic scripts |
-| 🛡️ **Grounded Answers** | The LLM is explicitly instructed to answer *only* from retrieved context — and to say "I don't know" otherwise, preventing hallucination |
-| 🔁 **Idempotent Indexing** | Documents are chunked into deterministic, content-based IDs — re-uploading the same file never creates duplicate vectors |
-| 🧽 **Robust Text Cleaning** | Handles real-world PDF extraction issues: null bytes, broken Unicode surrogate pairs, embedded artifacts |
-| ⚠️ **Production Error Handling** | Meaningful exceptions with preserved stack traces (`raise ... from e`), not silent failures |
-| 🔄 **Automatic Retries** | Transient OpenAI API failures are retried with exponential backoff |
-| 📊 **Structured Logging** | Centralized logging config — every module logs with timestamp, source, and level |
-| ⚙️ **Centralized Config** | All tunables (chunk size, models, paths) live in one place, not scattered magic numbers |
-| ✅ **Evaluation Harness** | Automated retrieval-quality checks against a curated question set |
-| 🌐 **REST API** | Clean FastAPI interface (`/upload`, `/ask`) with auto-generated interactive docs |
-| 🐳 **Containerized** | Fully dockerized — runs identically on any machine with zero local setup |
-
----
-
-## 🏗️ Architecture
-
-<div align="center">
-
-```
-┌──────────────────────────────────────────────────────────┐
-│                     🐳 Docker Container                    │
-│  ┌────────────────────────────────────────────────────┐  │
-│  │                  🌐 FastAPI Layer                    │  │
-│  │            POST /upload      POST /ask               │  │
-│  │  ┌──────────────────────────────────────────────┐  │  │
-│  │  │              🧠 RAGPipeline                     │  │  │
-│  │  │                                                  │  │  │
-│  │  │   load_pdf → clean → chunk → generate_ids       │  │  │
-│  │  │            → embed → store                      │  │  │
-│  │  │                                                  │  │  │
-│  │  │   retrieve → build_prompt → generate_answer     │  │  │
-│  │  │  ┌────────────────────────────────────────┐    │  │  │
-│  │  │  │         🗄️  ChromaDB (vector store)      │    │  │  │
-│  │  │  └────────────────────────────────────────┘    │  │  │
-│  │  └──────────────────────────────────────────────┘  │  │
-│  └────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-                    🔑 OpenAI API
-              (embeddings + chat completion)
-```
-
-</div>
-
----
-
-## 🛠️ Tech Stack
-
-<div align="center">
-
-| Layer | Technology | Why |
-|---|---|---|
-| 🤖 LLM & Embeddings | **OpenAI** (`gpt-4o-mini`, `text-embedding-3-small`) | Strong quality-to-cost ratio for a portfolio-scale project |
-| 🔗 Orchestration | **LangChain** | Industry-standard abstractions for loaders, splitters, and chains |
-| 🗄️ Vector Store | **ChromaDB** | Lightweight, local, zero-infra setup — ideal for this scale |
-| 🌐 API Framework | **FastAPI** | Async-ready, automatic validation via Pydantic, self-documenting |
-| 🐳 Containerization | **Docker** | Reproducible, portable deployment across any machine |
-| 🐍 Language | **Python 3.11** | — |
-
-</div>
-
----
-
-## 📁 Project Structure
-
-```
-rag-doc-qa/
-├── 🐳 Dockerfile
-├── 🚫 .dockerignore
-├── 🚫 .gitignore
-├── 🔑 .env                    # API keys (not committed)
-├── 📋 requirements.txt
-│
-├── ⚙️  config/
-│   ├── __init__.py
-│   └── settings.py            # centralized config: paths, models, chunk size, logging
-│
-├── 🧠 src/
-│   ├── api.py                 # FastAPI app — /upload, /ask
-│   ├── pipeline.py            # RAGPipeline — orchestrates the full flow
-│   ├── loaders.py             # PDF loading
-│   ├── cleaning.py            # text cleaning (encoding fixes, noise removal)
-│   ├── chunking.py            # text splitting + deterministic chunk IDs
-│   ├── embeddings.py          # embedding model config
-│   ├── vectorstore.py         # Chroma create/upsert logic (idempotent)
-│   ├── retriever.py           # similarity search
-│   └── generation.py          # prompt construction + LLM call
-│
-├── 🧪 tests/
-│   ├── explore_retrieval.py   # manual retrieval exploration
-│   └── evaluate_retrieval.py  # automated retrieval evaluation
-│
-└── 📂 data/
-    ├── raw/                   # source PDFs
-    └── vectorstore/           # persisted Chroma DB
-```
-
----
-
-## 🚀 Getting Started
-
-### Option 1 — Run with Docker (recommended)
-
+## Setup
+Python 3.12 is the tested target.
 ```bash
-# 1. Clone the repo
-git clone <your-repo-url>
+git clone https://github.com/Mohamed934789/rag-doc-qa.git
 cd rag-doc-qa
-
-# 2. Add your OpenAI key
-echo "OPENAI_API_KEY=sk-..." > .env
-
-# 3. Build the image
-docker build -t rag-doc-qa .
-
-# 4. Run the container
-docker run -p 8000:8000 --env-file .env rag-doc-qa
+python -m venv .venv
+# Linux/macOS: source .venv/bin/activate
+# Windows: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+# Copy .env.example to .env.local and set your own OpenAI key for live use.
+python -m uvicorn src.api:app --host 127.0.0.1 --port 8000
 ```
-
-Then open **http://127.0.0.1:8000/docs** for the interactive API playground. 🎉
-
-### Option 2 — Run locally
+Open http://127.0.0.1:8000/docs. `/health` requires no provider credentials.
 
 ```bash
-python -m venv venv
-venv\Scripts\activate        # Windows
-pip install -r requirements.txt
-
-# create a .env with OPENAI_API_KEY=...
-
-uvicorn src.api:app --reload
+curl -F "file=@your-document.pdf" http://127.0.0.1:8000/upload
+curl -H "Content-Type: application/json" -d '{"question":"What does the document say?"}' http://127.0.0.1:8000/ask
 ```
+`/upload` accepts multipart PDF bytes, up to 10 MiB, never server file paths. Re-uploading
+the same basename replaces that document's chunks; use distinct names for distinct documents.
+Answers return `question`, `answer`, and `sources` with one-based PDF pages, chunk IDs and quotes.
+Indexing and answering use paid APIs with your configured account. No provider call is needed for tests.
 
----
+## Architecture and limits
+`loaders → cleaning → chunking → embeddings → Chroma → retrieval → generation → API`.
+The pipeline is injectable for offline tests; configuration is in `config/settings.py`.
+Storage is project-relative by default and can be overridden with `RAG_VECTORSTORE_DIR`.
+The corpus is shared by local requests. Bind to localhost; authentication and tenant separation
+are not implemented. Image-only/encrypted PDFs are rejected; OCR is not implemented.
+Prompted abstention and returned excerpts are not a guarantee of faithful answers.
 
-## 📡 API Usage
-
-### `POST /upload` — Index a document
-
-```json
-{
-  "file_path": "/app/data/raw/your-document.pdf"
-}
+## Verification
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
 ```
+Tests exercise real local Chroma persistence with deterministic fixture embeddings, reindex/shrink,
+page citations, multipart validation, safe errors and restart behavior. They do not measure live LLM
+accuracy. The original retrieval exploration scripts are retained as historical experiments;
+use `python -m tests.evaluate_retrieval` only after setting up live credentials and a corpus.
 
-### `POST /ask` — Ask a question
-
-```json
-{
-  "question": "What is regularization?"
-}
-```
-
-**Response:**
-
-```json
-{
-  "question": "What is regularization?",
-  "answer": "Regularization is a technique used to reduce the risk of overfitting by adding a penalty for overly complex model weights..."
-}
-```
-
-If the answer isn't in the indexed documents, the system responds honestly:
-
-```json
-{
-  "question": "What is the capital of France?",
-  "answer": "I don't know."
-}
-```
-
----
-
-## 🧠 Design Decisions Worth Highlighting
-
-> A few engineering choices that came from hitting real problems, not just following a tutorial.
-
-- **Deterministic chunk IDs** (`source + page + chunk_index`) so re-indexing the same document is idempotent — no duplicate vectors, ever.
-- **Two-stage text cleaning**: stripped both PDF encoding artifacts (null bytes, broken Unicode surrogate pairs) *before* chunking — cleaning after chunking would corrupt chunk boundaries.
-- **Grounded prompting**: the LLM is instructed to answer only from retrieved context, verified empirically — out-of-scope questions reliably return "I don't know" instead of hallucinated answers.
-- **Retrieval evaluated before optimizing**: techniques like MMR, reranking, and multi-query retrieval were deliberately **not** added without evidence they were needed — validated through a manual + automated evaluation pass first.
-
----
-
-## 🗺️ Roadmap
-
-- [ ] File upload via `multipart/form-data` instead of server-side file paths
-- [ ] Multi-query retrieval / reranking (if evaluation shows a need)
-- [ ] LLM-as-judge for answer-quality scoring
-- [ ] `docker-compose.yml` for multi-service orchestration
-
----
-
-<div align="center">
-
-Built as a hands-on deep dive into production RAG engineering — from first principles to a deployable container.
-
-</div>
+## Data and evaluation
+Use your own authorized PDFs or generate a synthetic sample with `python scripts/make_sample.py`.
+An older committed textbook PDF is retained pending an owner redistribution review; do not treat
+its presence as a license grant. No benchmark accuracy is claimed. Offline fixture retrieval is a
+regression test, not a representative semantic-quality evaluation.
